@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Convert old CS2 crosshair share codes and configs to the new Rush Hour crosshair settings.">
+<title>Crosshair Migrator</title>
+<style>
+:root{
+  --bg:#f2f2ef; --ink:#17191c; --muted:#686c73; --line:#d9d9d4; --field:#fff;
+  --btn:#17191c; --btn-ink:#f2f2ef; --warn:#8a5300; --err:#b3261e; --sand:#c7ab80;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:ui-monospace,"Cascadia Mono",Consolas,"SF Mono",monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  color-scheme:dark;--bg:#141517;--ink:#e6e6e3;--muted:#979ba2;--line:#2d2f33;--field:#1b1c1f;
+  --btn:#e6e6e3;--btn-ink:#141517;--warn:#e0a64a;--err:#f08a80;}}
+:root[data-theme="dark"]{
+  color-scheme:dark;--bg:#141517;--ink:#e6e6e3;--muted:#979ba2;--line:#2d2f33;--field:#1b1c1f;
+  --btn:#e6e6e3;--btn-ink:#141517;--warn:#e0a64a;--err:#f08a80;}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 var(--sans);padding:40px 16px 64px}
+main{max-width:760px;margin:0 auto}
+h1{font-size:22px;font-weight:650;margin:0}
+.sub{color:var(--muted);margin:4px 0 28px}
+.sub code,p code{font-family:var(--mono);font-size:13px}
+label{display:block;font-weight:600;font-size:14px;margin-bottom:6px}
+textarea,select,input{font:14px var(--mono);color:var(--ink);background:var(--field);border:1px solid var(--line);border-radius:3px;padding:9px 10px}
+textarea{width:100%;min-height:84px;resize:vertical;line-height:1.45}
+select{font-family:var(--sans)}
+:focus-visible{outline:2px solid var(--ink);outline-offset:1px}
+.under{display:flex;flex-wrap:wrap;gap:8px 20px;align-items:center;margin-top:8px;font-size:14px;color:var(--muted)}
+.under a{color:var(--ink);cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+.under select{padding:5px 8px}
+#msg{margin:10px 0 0;font-size:14px;color:var(--muted);min-height:21px}
+#msg.err{color:var(--err)}
+hr{border:0;border-top:1px solid var(--line);margin:28px 0}
+.cmp{display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:560px}
+.cmp figure{margin:0}
+canvas{width:100%;aspect-ratio:1;display:block;image-rendering:pixelated;border-radius:2px}
+figcaption{font-size:13px;color:var(--muted);margin-top:6px;font-variant-numeric:tabular-nums}
+figcaption b{color:var(--ink);font-weight:600}
+.cmd{margin-top:24px}
+.cmd pre{margin:0;background:var(--field);border:1px solid var(--line);border-radius:3px;padding:12px;font:13px/1.55 var(--mono);white-space:pre-wrap;overflow-wrap:break-word}
+.actions{display:flex;gap:16px;align-items:center;margin-top:10px;font-size:14px}
+button.primary{background:var(--btn);color:var(--btn-ink);border:0;border-radius:3px;font:600 14px var(--sans);padding:9px 14px;cursor:pointer}
+button.link{background:none;border:0;padding:0;color:var(--ink);font:14px var(--sans);text-decoration:underline;text-underline-offset:2px;cursor:pointer}
+#toast{color:var(--muted)}
+#warns{margin:16px 0 0;padding-left:18px;color:var(--warn);font-size:14px}
+#warns:empty{display:none}
+h2{font-size:15px;font-weight:650;margin:0 0 4px}
+.tw{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px;font-variant-numeric:tabular-nums}
+th{text-align:left;font-weight:600;color:var(--muted);font-size:13px;padding:6px 10px 6px 0;border-bottom:1px solid var(--line)}
+td{padding:5px 10px 5px 0;border-bottom:1px solid var(--line);white-space:nowrap}
+td .c{display:block;font-family:var(--mono);font-size:12px;color:var(--muted)}
+td select{max-width:100%}
+td.o{color:var(--muted)}
+td input{width:72px;padding:4px 6px}
+td select{padding:4px 6px}
+.fine{font-size:13px;color:var(--muted);max-width:64ch;margin:24px 0 0}
+@media (max-width:480px){.cmp{gap:10px}}
+</style>
+</head>
+<body>
+
+<main>
+  <h1>Crosshair Migrator</h1>
+  <p class="sub">Converts pre–Rush Hour CS2 crosshairs to the new <code>cl_crosshair_length</code> / <code>_gap</code> / <code>_thickness</code> settings.</p>
+
+  <label for="src">Share code or old console commands</label>
+  <textarea id="src" spellcheck="false" autocomplete="off" placeholder="CSGO-xxxxx-xxxxx-xxxxx-xxxxx-xxxxx&#10;or: cl_crosshairsize 2; cl_crosshairgap -3; cl_crosshairthickness 0"></textarea>
+  <div class="under">
+    <span id="samples">Try:</span>
+    <span><label for="res" style="display:inline;font-weight:400">Played at</label>
+      <select id="res">
+        <option value="1080" selected>1920×1080</option>
+        <option value="960">1280×960</option>
+        <option value="1024">1280×1024</option>
+        <option value="768">1024×768</option>
+        <option value="1050">1680×1050</option>
+        <option value="1440">2560×1440</option>
+        <option value="2160">3840×2160</option>
+      </select></span>
+  </div>
+  <p id="msg" role="status"></p>
+
+  <hr>
+
+  <div class="cmp">
+    <figure><canvas id="cvOld" width="360" height="360" aria-label="Old crosshair"></canvas>
+      <figcaption><b>Before</b> <span id="capOld"></span></figcaption></figure>
+    <figure><canvas id="cvNew" width="360" height="360" aria-label="New crosshair"></canvas>
+      <figcaption><b>After</b> <span id="capNew"></span></figcaption></figure>
+  </div>
+
+  <div class="cmd">
+    <label for="out">Paste into the console</label>
+    <pre id="out" tabindex="0"></pre>
+    <div class="actions">
+      <button class="primary" id="copy">Copy</button>
+      <button class="link" id="copyCfg">Copy as .cfg lines</button>
+      <span id="toast" role="status"></span>
+    </div>
+  </div>
+  <ul id="warns"></ul>
+
+  <hr>
+
+  <h2>Values</h2>
+  <p class="sub" style="margin:0 0 12px;font-size:14px">Edit anything in the New column; the preview and command update.</p>
+  <div class="tw"><table>
+    <thead><tr><th>Setting</th><th>Old</th><th>New</th></tr></thead>
+    <tbody id="tbody"></tbody>
+  </table></div>
+
+  <p class="fine">Old crosshairs were sized in 1/480ths of screen height and snapped to whole pixels. New ones are measured in pixels at 1080p and scale with your screen, which was checked in game: length 20, thickness 2 and gap 0 drew 20 px bars, 2 px thick, touching the dot. The old gap is rebuilt from how CS:GO drew it, so if yours looks one pixel off, change gap by 1.</p>
+</main>
+
+<script>
+(() => {
+  const DICT = 'ABCDEFGHJKLMNOPQRSTUVWXYZabcdefhijkmnopqrstuvwxyz23456789';
+  const PRESET = {0:[255,0,0],1:[0,255,0],2:[255,255,0],3:[0,0,255],4:[0,255,255]};
+  const PRESET_NAME = {0:'red',1:'green',2:'yellow',3:'blue',4:'cyan'};
+  const OLD_STYLE = {0:'Default',1:'Default Static',2:'Classic',3:'Classic Dynamic',4:'Classic Static',5:'Legacy'};
+  const NEW_STYLE = {0:'Dynamic Cross',1:'Dynamic Circle',2:'Dynamic Cross (Classic)',3:'Static Circle',4:'Static Cross',5:'Dynamic Cross (Legacy)',6:'Dot Only',7:'Dynamic Quad'};
+  const STYLE_MAP = {0:0,1:4,2:2,3:0,4:4,5:5};
+  const SAMPLES = [['donk','CSGO-aNQn2-upV5w-M8dOd-OOwcf-2pFKO'],['s1mple','CSGO-s5Qbj-nvF89-cJjDd-mRdSG-5Yt4N'],['m0NESY','CSGO-wAD3c-ykt5L-zvZ98-vBisR-6sWPA'],['ZywOo','CSGO-hzGdv-OVFPn-OarUo-OSZCY-wwXsO']];
+  const $ = id => document.getElementById(id);
+  let old = null, neu = null, warnings = [];
+
+  function decodeShare(code) {
+    let big = 0n;
+    for (const ch of [...code.replace(/CSGO|-/g, '')].reverse()) {
+      const i = DICT.indexOf(ch);
+      if (i < 0) throw new Error(`"${ch}" can't appear in a share code. Check for 0/O or 1/l mix-ups.`);
+      big = big * 57n + BigInt(i);
+    }
+    const hex = big.toString(16).padStart(36, '0'), b = [];
+    for (let i = 0; i < 36; i += 2) b.push(parseInt(hex.slice(i, i + 2), 16));
+    if (b[0] !== b.slice(1).reduce((a, v) => a + v, 0) % 256) throw new Error('Checksum doesn\'t match. A character is probably mistyped.');
+    const i8 = n => (n << 24) >> 24;
+    return {
+      gap: i8(b[2]) / 10, outlinethickness: b[3] / 2, r: b[4], g: b[5], b: b[6], alpha: b[7],
+      splitdist: b[8] & 7, recoil: ((b[8] >> 4) & 8) ? 1 : 0, color: b[10] & 7, drawoutline: (b[10] & 8) ? 1 : 0,
+      innermod: (b[10] >> 4) / 10, outermod: (b[11] & 15) / 10, splitratio: (b[11] >> 4) / 10, thickness: b[12] / 10,
+      dot: ((b[13] >> 4) & 1) ? 1 : 0, useweapongap: ((b[13] >> 4) & 2) ? 1 : 0, usealpha: ((b[13] >> 4) & 4) ? 1 : 0,
+      t: ((b[13] >> 4) & 8) ? 1 : 0, style: (b[13] & 15) >> 1, size: b[14] / 10,
+    };
+  }
+
+  const CFG_KEYS = {cl_crosshairsize:'size',cl_crosshairgap:'gap',cl_crosshairthickness:'thickness',cl_crosshairstyle:'style',cl_crosshairdot:'dot',cl_crosshair_t:'t',cl_crosshair_drawoutline:'drawoutline',cl_crosshair_outlinethickness:'outlinethickness',cl_crosshaircolor:'color',cl_crosshaircolor_r:'r',cl_crosshaircolor_g:'g',cl_crosshaircolor_b:'b',cl_crosshairalpha:'alpha',cl_crosshairusealpha:'usealpha',cl_crosshair_recoil:'recoil',cl_crosshairgap_useweaponvalue:'useweapongap',cl_crosshair_dynamic_splitdist:'splitdist',cl_crosshair_dynamic_splitalpha_innermod:'innermod',cl_crosshair_dynamic_splitalpha_outermod:'outermod',cl_crosshair_dynamic_maxdist_splitratio:'splitratio',cl_crosshair_sniper_width:'sniperwidth'};
+  const CFG_DEFAULTS = {size:5,gap:1,thickness:.5,style:4,dot:0,t:0,drawoutline:1,outlinethickness:1,color:1,r:50,g:250,b:50,alpha:200,usealpha:1,recoil:0,useweapongap:0,splitdist:3,innermod:0,outermod:1,splitratio:1};
+
+  function parseCfg(text) {
+    const o = {...CFG_DEFAULTS}; let hits = 0, already = false;
+    for (const stmt of text.split(/[;\n\r]+/)) {
+      const m = stmt.trim().match(/^([a-z_0-9]+)\s+"?(-?[\d.]+|true|false)"?/i);
+      if (!m) continue;
+      const key = m[1].toLowerCase(); let v = m[2].toLowerCase();
+      v = v === 'true' ? 1 : v === 'false' ? 0 : parseFloat(v);
+      if (/^cl_crosshair_(length|gap|thickness)$/.test(key)) already = true;
+      if (key in CFG_KEYS) { o[CFG_KEYS[key]] = v; hits++; }
+    }
+    if (!hits) throw new Error(already ? 'Those are already the new settings. Nothing to convert.' : 'No old crosshair commands found. Expected lines like cl_crosshairsize 2.');
+    o._hits = hits; return o;
+  }
+
+  const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+  const H = () => +$('res').value;
+  const oldPx = (o, h) => { const s = h / 480; return { len: Math.round(o.size * s), thick: Math.max(1, Math.round(o.thickness * s)), gap: Math.round((o.gap + 4) * s) }; };
+  const oldRgb = o => o.color !== 5 && PRESET[o.color] ? PRESET[o.color] : [o.r, o.g, o.b];
+
+  function convert(o, h) {
+    warnings = [];
+    const px = oldPx(o, h), k = 1080 / h, rgb = oldRgb(o), style = STYLE_MAP[o.style] ?? 4;
+    if (o.style === 0 || o.style === 1) warnings.push(`Old style ${OLD_STYLE[o.style]} has no direct match; using ${NEW_STYLE[style]}.`);
+    if (o.useweapongap) warnings.push('“Use weapon gap” no longer exists; your fixed gap now applies to every weapon.');
+    if (o.drawoutline && o.outlinethickness > 1) warnings.push(`Outline was ${o.outlinethickness}px; the new outline is a fixed 1px.`);
+    return {
+      style, length: clamp(Math.round(px.len * k), 0, 100), gap: clamp(Math.round(px.gap * k), -50, 50),
+      thickness: clamp(Math.round(px.thick * k), 1, 20), dot: o.dot, t: o.t, drawoutline: o.drawoutline,
+      r: rgb[0], g: rgb[1], b: rgb[2], a: o.usealpha ? o.alpha : 255, recoil: o.recoil,
+      splitdist: o.splitdist, innermod: o.innermod, outermod: clamp(o.outermod, .3, 1), splitratio: o.splitratio, sniperwidth: o.sniperwidth,
+    };
+  }
+
+  // Pixel-exact drawing: rects in screen pixels, scaled by zoom.
+  function shapes(p, c) {
+    const t = p.thick, x0 = c - Math.floor(t / 2), y0 = x0, x1 = x0 + t, y1 = x1, r = [];
+    if (p.arms && p.len > 0) {
+      r.push([x1 + p.gap, y0, p.len, t], [x0 - p.gap - p.len, y0, p.len, t], [x0, y1 + p.gap, t, p.len]);
+      if (!p.t) r.push([x0, y0 - p.gap - p.len, t, p.len]);
+    }
+    if (p.dot) r.push([x0, y0, t, t]);
+    if (p.quad) {
+      const d = Math.max(p.gap + p.len + 2, 6), a = Math.max(2, t + 1);
+      for (const [sx, sy] of [[-1,-1],[1,-1],[-1,1],[1,1]]) {
+        const ox = sx < 0 ? c - d - t : c + d, oy = sy < 0 ? c - d - t : c + d;
+        r.push([sx < 0 ? ox : ox - a + t, oy, a, t], [ox, sy < 0 ? oy : oy - a + t, t, a]);
+      }
+    }
+    return r;
+  }
+  const extent = p => Math.abs(p.gap) + p.len + p.thick + (p.quad ? 8 : 0) + 2;
+
+  function paint(cv, p, zoom) {
+    const ctx = cv.getContext('2d'), W = cv.width, c = Math.floor(W / zoom / 2);
+    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--sand').trim();
+    ctx.fillRect(0, 0, W, W);
+    const R = ([x, y, w, h], pad, fill) => { if (w > 0 && h > 0) { ctx.fillStyle = fill; ctx.fillRect((x - pad) * zoom, (y - pad) * zoom, (w + 2 * pad) * zoom, (h + 2 * pad) * zoom); } };
+    if (p.circle) {
+      ctx.strokeStyle = p.color; ctx.lineWidth = p.thick * zoom;
+      ctx.beginPath(); ctx.arc((c + .5) * zoom, (c + .5) * zoom, (Math.abs(p.gap) + p.len) * zoom, 0, 7); ctx.stroke();
+    }
+    const rs = shapes(p, c);
+    if (p.outline) rs.forEach(s => R(s, p.outline, '#000'));
+    rs.forEach(s => R(s, 0, p.color));
+  }
+
+  function render() {
+    if (!old || !neu) return;
+    const h = H(), px = oldPx(old, h), s = h / 1080;
+    const pOld = { len: px.len, thick: px.thick, gap: px.gap, dot: old.dot, t: old.t, arms: true,
+      outline: old.drawoutline ? Math.max(1, Math.round(old.outlinethickness)) : 0,
+      color: `rgba(${oldRgb(old)},${old.usealpha ? old.alpha / 255 : 1})` };
+    const st = neu.style;
+    const pNew = { len: Math.round(neu.length * s), thick: Math.max(1, Math.round(neu.thickness * s)), gap: Math.round(neu.gap * s),
+      dot: neu.dot || st === 6, t: neu.t, outline: neu.drawoutline ? 1 : 0,
+      arms: [0, 2, 4, 5, 7].includes(st), circle: [1, 3].includes(st), quad: st === 7,
+      color: `rgba(${neu.r},${neu.g},${neu.b},${neu.a / 255})` };
+    // Same zoom for both so they compare honestly; fit the larger one.
+    const W = $('cvOld').width, span = Math.max(extent(pOld), extent(pNew)) * 2 + 6;
+    const zoom = clamp(Math.floor(W / span), 2, 14);
+    paint($('cvOld'), pOld, zoom); paint($('cvNew'), pNew, zoom);
+    $('capOld').textContent = `${OLD_STYLE[old.style] ?? ''} · ${px.len}px long, ${px.thick}px thick`;
+    $('capNew').textContent = `${NEW_STYLE[st]} · ${zoom}× zoom`;
+  }
+
+  const ROWS = [
+    ['Style', o => OLD_STYLE[o.style] ?? o.style, 'cl_crosshairstyle', 'style', 'sel'],
+    ['Length', o => `size ${o.size}`, 'cl_crosshair_length', 'length', [0, 100]],
+    ['Gap', o => o.gap, 'cl_crosshair_gap', 'gap', [-50, 50]],
+    ['Thickness', o => o.thickness, 'cl_crosshair_thickness', 'thickness', [1, 20]],
+    ['Red', o => o.color === 5 ? o.r : `${PRESET_NAME[o.color]} preset`, 'cl_crosshaircolor_r', 'r', [0, 255]],
+    ['Green', o => o.color === 5 ? o.g : '', 'cl_crosshaircolor_g', 'g', [0, 255]],
+    ['Blue', o => o.color === 5 ? o.b : '', 'cl_crosshaircolor_b', 'b', [0, 255]],
+    ['Opacity', o => o.usealpha ? o.alpha : 'off', 'cl_crosshaircolor_a', 'a', [0, 255]],
+    ['Dot', o => o.dot, 'cl_crosshairdot', 'dot', [0, 1]],
+    ['T-style', o => o.t, 'cl_crosshair_t', 't', [0, 1]],
+    ['Outline', o => o.drawoutline, 'cl_crosshair_drawoutline', 'drawoutline', [0, 1]],
+    ['Follow recoil', o => o.recoil, 'cl_crosshair_recoil', 'recoil', [0, 1]],
+  ];
+
+  function buildTable() {
+    $('tbody').innerHTML = ROWS.map(([label, oldFn, cvar, key, spec]) => {
+      const ctl = spec === 'sel'
+        ? `<select id="n_${key}">${Object.entries(NEW_STYLE).map(([v, n]) => `<option value="${v}"${+v === neu[key] ? ' selected' : ''}>${v} ${n}</option>`).join('')}</select>`
+        : `<input type="number" id="n_${key}" min="${spec[0]}" max="${spec[1]}" step="1" value="${neu[key]}">`;
+      return `<tr><td>${label}<span class="c">${cvar}</span></td><td class="o">${oldFn(old)}</td><td>${ctl}</td></tr>`;
+    }).join('');
+    $('tbody').querySelectorAll('input,select').forEach(el => el.addEventListener('input', () => {
+      const v = parseFloat(el.value); if (!Number.isNaN(v)) neu[el.id.slice(2)] = v; output(); render();
+    }));
+    $('warns').innerHTML = warnings.map(w => `<li>${w}</li>`).join('');
+  }
+
+  function cvars() {
+    const l = [['cl_crosshairstyle', neu.style], ['cl_crosshair_length', neu.length], ['cl_crosshair_gap', neu.gap], ['cl_crosshair_thickness', neu.thickness],
+      ['cl_crosshairdot', neu.dot], ['cl_crosshair_t', neu.t], ['cl_crosshair_drawoutline', neu.drawoutline],
+      ['cl_crosshaircolor_r', neu.r], ['cl_crosshaircolor_g', neu.g], ['cl_crosshaircolor_b', neu.b], ['cl_crosshaircolor_a', neu.a], ['cl_crosshair_recoil', neu.recoil]];
+    if (neu.style === 2) l.push(['cl_crosshair_dynamic_splitdist', neu.splitdist], ['cl_crosshair_dynamic_splitalpha_innermod', neu.innermod], ['cl_crosshair_dynamic_splitalpha_outermod', neu.outermod], ['cl_crosshair_dynamic_maxdist_splitratio', neu.splitratio]);
+    if (neu.sniperwidth !== undefined) l.push(['cl_crosshair_sniper_width', neu.sniperwidth]);
+    return l;
+  }
+  const output = () => { $('out').textContent = cvars().map(([k, v]) => `${k} ${v}`).join('; '); };
+
+  function run() {
+    const txt = $('src').value.trim(), msg = $('msg');
+    msg.className = '';
+    if (!txt) { msg.textContent = ''; return; }
+    try {
+      const code = txt.match(/CSGO(-?[\w]{5}){5}/);
+      if (code) {
+        old = decodeShare(code[0]);
+        msg.textContent = `Share code: size ${old.size}, gap ${old.gap}, thickness ${old.thickness}.`;
+      } else {
+        old = parseCfg(txt);
+        msg.textContent = `Read ${old._hits} command${old._hits === 1 ? '' : 's'}; anything missing uses the old default.`;
+      }
+      neu = convert(old, H());
+      buildTable(); output(); render();
+    } catch (e) { msg.className = 'err'; msg.textContent = e.message; }
+  }
+
+  $('src').addEventListener('input', run);
+  $('res').addEventListener('change', run);
+  SAMPLES.forEach(([name, code], i) => {
+    const a = document.createElement('a'); a.textContent = name; a.tabIndex = 0;
+    const go = () => { $('src').value = code; run(); };
+    a.onclick = go; a.onkeydown = e => { if (e.key === 'Enter') go(); };
+    $('samples').append(' ', a, i < SAMPLES.length - 1 ? ',' : '');
+  });
+
+  async function copy(text) {
+    try { await navigator.clipboard.writeText(text); $('toast').textContent = 'Copied'; }
+    catch { const r = document.createRange(); r.selectNodeContents($('out')); getSelection().removeAllRanges(); getSelection().addRange(r); $('toast').textContent = 'Selected, press Ctrl+C'; }
+    setTimeout(() => { $('toast').textContent = ''; }, 2000);
+  }
+  $('copy').onclick = () => copy($('out').textContent);
+  $('copyCfg').onclick = () => copy(cvars().map(([k, v]) => `${k} "${v}"`).join('\n') + '\n');
+
+  $('src').value = SAMPLES[3][1];
+  run();
+})();
+</script>
+</body>
+</html>
