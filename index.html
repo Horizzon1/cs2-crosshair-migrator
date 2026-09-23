@@ -38,7 +38,8 @@ hr{border:0;border-top:1px solid var(--line);margin:28px 0}
 .cmp{display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:560px}
 .cmp figure{margin:0}
 canvas{width:100%;aspect-ratio:1;display:block;image-rendering:pixelated;border-radius:2px}
-figcaption{font-size:13px;color:var(--muted);margin-top:6px;font-variant-numeric:tabular-nums}
+figcaption{font-size:13px;color:var(--muted);margin-top:8px;font-variant-numeric:tabular-nums;display:flex;gap:10px;align-items:center}
+canvas.real{width:40px;height:40px;aspect-ratio:auto;flex:none;image-rendering:auto}
 figcaption b{color:var(--ink);font-weight:600}
 .cmd{margin-top:24px}
 .cmd pre{margin:0;background:var(--field);border:1px solid var(--line);border-radius:3px;padding:12px;font:13px/1.55 var(--mono);white-space:pre-wrap;overflow-wrap:break-word}
@@ -88,10 +89,10 @@ td select{padding:4px 6px}
   <hr>
 
   <div class="cmp">
-    <figure><canvas id="cvOld" width="360" height="360" aria-label="Old crosshair"></canvas>
-      <figcaption><b>Before</b> <span id="capOld"></span></figcaption></figure>
-    <figure><canvas id="cvNew" width="360" height="360" aria-label="New crosshair"></canvas>
-      <figcaption><b>After</b> <span id="capNew"></span></figcaption></figure>
+    <figure><canvas id="cvOld" width="360" height="360" aria-label="Old crosshair, zoomed"></canvas>
+      <figcaption><canvas class="real" id="cvOld1" width="40" height="40" aria-label="Old crosshair, actual size"></canvas><span><b>Before</b> <span id="capOld"></span></span></figcaption></figure>
+    <figure><canvas id="cvNew" width="360" height="360" aria-label="New crosshair, zoomed"></canvas>
+      <figcaption><canvas class="real" id="cvNew1" width="40" height="40" aria-label="New crosshair, actual size"></canvas><span><b>After</b> <span id="capNew"></span></span></figcaption></figure>
   </div>
 
   <div class="cmd">
@@ -114,7 +115,7 @@ td select{padding:4px 6px}
     <tbody id="tbody"></tbody>
   </table></div>
 
-  <p class="fine">Old crosshairs were sized in 1/480ths of screen height and snapped to whole pixels. New ones are measured in pixels at 1080p and scale with your screen, which was checked in game: length 20, thickness 2 and gap 0 drew 20 px bars, 2 px thick, touching the dot. The old gap is rebuilt from how CS:GO drew it, so if yours looks one pixel off, change gap by 1.</p>
+  <p class="fine">The small squares show each crosshair at actual size. Old crosshair size and thickness were measured in 1/480ths of screen height, and the gap was 4 + gap in raw pixels. New ones are measured in pixels at 1080p and scale with your screen, which was checked in game: length 20, thickness 2 and gap 0 drew 20 px bars, 2 px thick, touching the dot. The old formula comes from CS:GO's source code and matches CS2 screenshots.</p>
 </main>
 
 <script>
@@ -168,7 +169,11 @@ td select{padding:4px 6px}
 
   const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
   const H = () => +$('res').value;
-  const oldPx = (o, h) => { const s = h / 480; return { len: Math.round(o.size * s), thick: Math.max(1, Math.round(o.thickness * s)), gap: Math.round((o.gap + 4) * s) }; };
+  // Source rounds half to even (22.5 -> 22, 13.5 -> 14).
+  const bround = x => { const f = Math.floor(x); return Math.abs(x - f - .5) < 1e-9 ? (f % 2 ? f + 1 : f) : Math.round(x); };
+  // Old static crosshair (CS:GO source, confirmed against CS2 screenshots): size and
+  // thickness scale by height/480, but the gap is 4 + cl_crosshairgap raw pixels.
+  const oldPx = (o, h) => { const s = h / 480; return { len: bround(o.size * s), thick: Math.max(1, bround(o.thickness * s)), gap: Math.trunc(4 + o.gap) }; };
   const oldRgb = o => o.color !== 5 && PRESET[o.color] ? PRESET[o.color] : [o.r, o.g, o.b];
 
   function convert(o, h) {
@@ -222,7 +227,7 @@ td select{padding:4px 6px}
     if (!old || !neu) return;
     const h = H(), px = oldPx(old, h), s = h / 1080;
     const pOld = { len: px.len, thick: px.thick, gap: px.gap, dot: old.dot, t: old.t, arms: true,
-      outline: old.drawoutline ? Math.max(1, Math.round(old.outlinethickness)) : 0,
+      outline: old.drawoutline ? bround(old.outlinethickness) : 0,
       color: `rgba(${oldRgb(old)},${old.usealpha ? old.alpha / 255 : 1})` };
     const st = neu.style;
     const pNew = { len: Math.round(neu.length * s), thick: Math.max(1, Math.round(neu.thickness * s)), gap: Math.round(neu.gap * s),
@@ -233,6 +238,7 @@ td select{padding:4px 6px}
     const W = $('cvOld').width, span = Math.max(extent(pOld), extent(pNew)) * 2 + 6;
     const zoom = clamp(Math.floor(W / span), 2, 14);
     paint($('cvOld'), pOld, zoom); paint($('cvNew'), pNew, zoom);
+    paint($('cvOld1'), pOld, 1); paint($('cvNew1'), pNew, 1);
     $('capOld').textContent = `${OLD_STYLE[old.style] ?? ''} · ${px.len}px long, ${px.thick}px thick`;
     $('capNew').textContent = `${NEW_STYLE[st]} · ${zoom}× zoom`;
   }
